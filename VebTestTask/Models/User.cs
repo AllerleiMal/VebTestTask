@@ -1,4 +1,6 @@
-﻿namespace VebTestTask.Models;
+﻿using Sieve.Attributes;
+
+namespace VebTestTask.Models;
 
 public class User
 {
@@ -6,5 +8,5 @@ public class User
     public string? Name { get; set; }
     public int Age { get; set; }
     public string? Email { get; set; }
-    private IEnumerable<Role>? Roles { get; set; }
+    public virtual ICollection<Role> Roles { get; set; }
 }
