@@ -45,10 +45,31 @@ public class UserController : ControllerBase
         {
             return NotFound();
         }
-        else
-        {
-            return Ok(targetUser);
-        }
+
+        return Ok(targetUser);
     }
+
     
+    /// <summary>
+    /// Deletes a specified user
+    /// </summary>
+    /// <param name="id">Unique user id</param>
+    /// <returns></returns>
+    [HttpDelete("{id:long}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteUserById(long id)
+    {
+        var targetUser = await _context.Users.FindAsync(id);
+        if (targetUser is null)
+        {
+            return NotFound();
+        }
+
+        _context.Users.Remove(targetUser);
+
+        await _context.SaveChangesAsync();
+
+        return NoContent();
+    }
 }
