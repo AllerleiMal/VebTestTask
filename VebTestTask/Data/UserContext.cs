@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using VebTestTask.Models;
 
-namespace VebTestTask.Models;
+namespace VebTestTask.Data;
 
 public class UserContext : DbContext
 {
