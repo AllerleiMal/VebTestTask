@@ -16,12 +16,6 @@ public class UserContext : DbContext
             .HasMany(u => u.Roles)
             .WithMany(r => r.Users)
             .UsingEntity<UserRole>();
-            // .UsingEntity(
-            //     j =>
-            //     {
-            //         j.IndexerProperty<int>("Id");
-            //         j.HasKey("Id");
-            //     });
     }
     
     public DbSet<User> Users { get; set; }
