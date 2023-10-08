@@ -1,6 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using VebTestTask.Data;
+using VebTestTask.Data.Repositories;
+using VebTestTask.Filter;
 using VebTestTask.Models;
+using VebTestTask.Wrapper;
 
 namespace VebTestTask.Controllers;
 
@@ -10,11 +14,13 @@ public class UserController : ControllerBase
 {
     private readonly ILogger<UserController> _logger;
     private readonly UserContext _context;
+    private readonly IUserRepository _userRepository;
 
-    public UserController(ILogger<UserController> logger, UserContext context)
+    public UserController(ILogger<UserController> logger, UserContext context, IUserRepository repository)
     {
         _logger = logger;
         _context = context;
+        _userRepository = repository;
     }
 
     /// <summary>
@@ -23,10 +29,26 @@ public class UserController : ControllerBase
     /// <returns></returns>
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetUsers()
+    public async Task<IActionResult> GetUsers([FromQuery] PaginationFilter filter)
     {
-        var users = await _context.Users.Include(u=>u.Roles).ToListAsync();
-        return Ok(users);
+
+        var pagedUsersParams = await PaginatedUsersParams.GetParamsFromPaginationFilter(filter);
+        if (pagedUsersParams is null)
+        {
+            return BadRequest("Error in parameters");
+        }
+        
+        var (pagedData, totalRecords) = await _userRepository.GetPaginatedUsersAsync(pagedUsersParams);
+        
+        var response = new PagedResponse<List<User>>
+        {
+            Data = pagedData.ToList(),
+            PageNumber = filter.PageNumber,
+            PageSize = filter.PageSize,
+            TotalRecords = totalRecords
+        };
+        
+        return Ok(response);
     }
 
     /// <summary>
