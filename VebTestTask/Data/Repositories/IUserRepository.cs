@@ -11,5 +11,6 @@ public interface IUserRepository
     Task<User?> InsertUserAsync(User user);
     Task<User?> DeleteUserAsync(int userId);
     Task UpdateUserAsync(User user);
+    Task<User?> AddNewRoleForUser(User user, Role role);
     Task SaveChangesAsync();
 }
