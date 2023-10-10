@@ -13,14 +13,14 @@ namespace VebTestTask.Controllers;
 public class UserController : ControllerBase
 {
     private readonly ILogger<UserController> _logger;
-    // private readonly UserContext _context;
     private readonly IUserRepository _userRepository;
+    private readonly IRoleRepository _roleRepository;
 
-    public UserController(ILogger<UserController> logger, IUserRepository repository)
+    public UserController(ILogger<UserController> logger, IUserRepository userRepository, IRoleRepository roleRepository)
     {
         _logger = logger;
-        // _context = context;
-        _userRepository = repository;
+        _userRepository = userRepository;
+        _roleRepository = roleRepository;
     }
 
     /// <summary>
@@ -137,5 +137,35 @@ public class UserController : ControllerBase
         await _userRepository.UpdateUserAsync(userToUpdate);
 
         return CreatedAtAction(nameof(GetUserByIdAsync), new { id = userToUpdate.Id }, null);
+    }
+
+    [HttpGet("roles")]
+    public async Task<IActionResult> GetAllRolesAsync()
+    {
+        return Ok(await _roleRepository.GetRolesAsync());
+    }
+
+    [HttpGet("add_role")]
+    [ProducesResponseType(StatusCodes.Status304NotModified)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> AddNewRole(int userId, int newRoleId)
+    {
+        var targetUser = await _userRepository.GetUserByIdAsync(userId);
+        if (targetUser is null)
+        {
+            return NotFound($"No user with such id {userId}");
+        }
+
+        var targetRole = await _roleRepository.GetRoleByIdAsync(newRoleId);
+
+        if (targetRole is null)
+        {
+            return NotFound($"No role with such id {newRoleId}");
+        }
+
+        var changedUser = await _userRepository.AddNewRoleForUser(targetUser, targetRole);
+
+        return changedUser is null ? StatusCode(304, targetUser) : Ok(changedUser);
     }
 }

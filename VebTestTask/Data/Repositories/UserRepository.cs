@@ -8,10 +8,12 @@ namespace VebTestTask.Data.Repositories;
 public class UserRepository : IUserRepository
 {
     private readonly UserContext _context;
+    private readonly IRoleRepository _roleRepository;
 
-    public UserRepository(UserContext context)
+    public UserRepository(UserContext context, IRoleRepository roleRepository)
     {
         _context = context;
+        _roleRepository = roleRepository;
     }
 
     public async Task<IEnumerable<User>> GetAllUsersAsync()
@@ -151,6 +153,19 @@ public class UserRepository : IUserRepository
 
         changedUser.ApplyChangesExceptId(user);
         await SaveChangesAsync();
+    }
+
+    public async Task<User?> AddNewRoleForUser(User user, Role role)
+    {
+        if (user.Roles.Contains(role))
+        {
+            return await Task.FromResult<User?>(null);
+        }
+        
+        user.Roles.Add(role);
+        await SaveChangesAsync();
+
+        return user;
     }
 
     public async Task SaveChangesAsync()
