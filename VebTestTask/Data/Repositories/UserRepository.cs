@@ -97,30 +97,59 @@ public class UserRepository : IUserRepository
 
     public async Task<User?> GetUserByIdAsync(int userId)
     {
-        return await _context.Users.Where(user => user.Id == userId).Include(user => user.Roles).FirstOrDefaultAsync();
+        return await _context.Users.Where(user => user.Id == userId).Include(user => user.Roles).SingleOrDefaultAsync();
     }
 
-    public async Task InsertUserAsync(User user)
+    public async Task<User?> GetUserByEmailAsync(string email)
     {
-        _context.Add(user);
-        await SaveChangesAsync();
+        return await _context.Users.Where(user => user.Email.Equals(email)).Include(user => user.Roles)
+            .SingleOrDefaultAsync();
     }
 
-    public async Task DeleteUserAsync(int userId)
+    public async Task<User?> InsertUserAsync(User user)
+    {
+        var requiredRoles = _context.Roles.ToList().Where(role => user.Roles.Select(r => r.Id).Contains(role.Id)).ToList();
+        user.Roles.Clear();
+        foreach (var role in requiredRoles)
+        {
+            user.Roles.Add(role);
+        }
+        var insertedUser =  _context.Add(user);
+        await SaveChangesAsync();
+        
+        return await GetUserByIdAsync(insertedUser.Entity.Id);
+    }
+
+    public async Task<User?> DeleteUserAsync(int userId)
     {
         var user = await _context.Users.FindAsync(userId);
         if (user is null)
         {
-            return;
+            return await Task.FromResult<User?>(null);
         }
 
         _context.Remove(user);
         await SaveChangesAsync();
+        
+        return await Task.FromResult<User?>(user);
     }
 
     public async Task UpdateUserAsync(User user)
     {
-        _context.Entry(user).State = EntityState.Modified;
+        var changedUser = await GetUserByIdAsync(user.Id);
+        if (changedUser is null)
+        {
+            return;
+        }
+
+        var newRoles = _context.Roles.ToList().Where(role => user.Roles.Any(r => r.Id == role.Id)).ToList();
+        user.Roles.Clear();
+        foreach (var role in newRoles)
+        {
+            user.Roles.Add(role);
+        }
+
+        changedUser.ApplyChangesExceptId(user);
         await SaveChangesAsync();
     }
 
