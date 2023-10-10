@@ -9,17 +9,17 @@ using VebTestTask.Wrapper;
 namespace VebTestTask.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v1/[controller]")]
 public class UserController : ControllerBase
 {
     private readonly ILogger<UserController> _logger;
-    private readonly UserContext _context;
+    // private readonly UserContext _context;
     private readonly IUserRepository _userRepository;
 
-    public UserController(ILogger<UserController> logger, UserContext context, IUserRepository repository)
+    public UserController(ILogger<UserController> logger, IUserRepository repository)
     {
         _logger = logger;
-        _context = context;
+        // _context = context;
         _userRepository = repository;
     }
 
@@ -29,7 +29,7 @@ public class UserController : ControllerBase
     /// <returns></returns>
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetUsers([FromQuery] PaginationFilter filter)
+    public async Task<IActionResult> GetUsersAsync([FromQuery] PaginationFilter filter)
     {
 
         var pagedUsersParams = await PaginatedUsersParams.GetParamsFromPaginationFilter(filter);
@@ -57,15 +57,15 @@ public class UserController : ControllerBase
     /// <param name="id">Unique user ID</param>
     /// <returns>User with entered ID and attached roles</returns>
     /// <response code="200">User with such ID found successfully</response>
-    [HttpGet("{id:long}")]
+    [HttpGet("{id:int}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetUserById(long id)
+    public async Task<IActionResult> GetUserByIdAsync(int id)
     {
-        var targetUser = await _context.Users.Where(user => user.Id == id).Include(user => user.Roles).FirstOrDefaultAsync();
+        var targetUser = await _userRepository.GetUserByIdAsync(id);
         if (targetUser == null)
         {
-            return NotFound();
+            return NotFound("No user with such ID");
         }
 
         return Ok(targetUser);
@@ -77,21 +77,65 @@ public class UserController : ControllerBase
     /// </summary>
     /// <param name="id">Unique user id</param>
     /// <returns></returns>
-    [HttpDelete("{id:long}")]
+    [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DeleteUserById(long id)
+    public async Task<IActionResult> DeleteUserByIdAsync(int id)
     {
-        var targetUser = await _context.Users.FindAsync(id);
+        var targetUser = await _userRepository.DeleteUserAsync(id);
         if (targetUser is null)
         {
-            return NotFound();
+            return BadRequest("No user with such ID");
+        }
+        
+        return NoContent();
+    }
+    
+    [HttpPost]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> CreateUserAsync([FromBody]User? user)
+    {
+        try
+        {
+            if (user is null)
+            {
+                return BadRequest("No user entity in request's body");
+            }
+    
+            var existedUser = await _userRepository.GetUserByEmailAsync(user.Email);
+            
+            if (existedUser != null)
+            {
+                ModelState.AddModelError("email", "User email is already in use");
+                return BadRequest(ModelState);
+            }
+            
+            var addedUser = await _userRepository.InsertUserAsync(user);
+    
+            return CreatedAtAction(nameof(GetUserByIdAsync), new { id = addedUser.Id }, addedUser);
+        }
+        catch (Exception)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                "Error while creating user");
+        }
+    }
+
+    [HttpPut]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    public async Task<ActionResult> UpdateProductAsync([FromBody] User userToUpdate)
+    {
+        var targetUser = await _userRepository.GetUserByIdAsync(userToUpdate.Id);
+
+        if (targetUser is null)
+        {
+            return NotFound($"User with id {userToUpdate.Id} not found.");
         }
 
-        _context.Users.Remove(targetUser);
+        await _userRepository.UpdateUserAsync(userToUpdate);
 
-        await _context.SaveChangesAsync();
-
-        return NoContent();
+        return CreatedAtAction(nameof(GetUserByIdAsync), new { id = userToUpdate.Id }, null);
     }
 }
