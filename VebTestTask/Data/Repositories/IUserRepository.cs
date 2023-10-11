@@ -85,7 +85,18 @@ public interface IUserRepository
     /// If specified User already has this role, method passed without any database changes<para/>
     /// Otherwise changes are pushed to the database.
     /// </returns>
-    Task<User?> AddNewRoleForUser(User user, Role role);
+    Task<User?> AddNewRoleForUserAsync(User user, Role role);
+
+    /// <summary>
+    /// Asynchronously returns the only User with entered email and name or null if no such User exist 
+    /// </summary>
+    /// <param name="name">Name of the User</param>
+    /// <param name="email">Unique email address of the User</param>
+    /// <returns>
+    /// A task that represents the asynchronous operation. The task result contains the single User with entered email
+    ///  and name, or null if no such element is found.
+    /// </returns>
+    Task<User?> GetUserByNameAndEmailAsync(string name, string email);
     
     /// <summary>
     /// Asynchronously save database changes

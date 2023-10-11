@@ -128,7 +128,7 @@ public class UserRepository : IUserRepository
     public async Task<User?> GetUserByEmailAsync(string email)
     {
         return await _context.Users
-            .Where(user => user.Email.Equals(email))
+            .Where(user => user.Email.ToLower().Equals(email.ToLower()))
             .Include(user => user.Roles)
             .SingleOrDefaultAsync();
     }
@@ -189,7 +189,7 @@ public class UserRepository : IUserRepository
         await SaveChangesAsync();
     }
 
-    public async Task<User?> AddNewRoleForUser(User user, Role role)
+    public async Task<User?> AddNewRoleForUserAsync(User user, Role role)
     {
         if (user.Roles.Contains(role))
         {
@@ -200,6 +200,14 @@ public class UserRepository : IUserRepository
         await SaveChangesAsync();
 
         return user;
+    }
+
+    public async Task<User?> GetUserByNameAndEmailAsync(string name, string email)
+    {
+        return await _context.Users
+            .Where(user => user.Name.ToLower().Equals(name.ToLower()) && user.Email.ToLower().Equals(email.ToLower()))
+            .Include(user => user.Roles)
+            .SingleOrDefaultAsync();
     }
 
     public async Task SaveChangesAsync()
