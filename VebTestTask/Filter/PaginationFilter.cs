@@ -1,15 +1,45 @@
 ﻿namespace VebTestTask.Filter;
 
+/// <summary>
+/// Query parameters wrapper for paginated GET request
+/// </summary>
 public class PaginationFilter
 {
+    /// <summary>
+    /// Chosen page number
+    /// </summary>
     public int PageNumber { get; set; }
+    /// <summary>
+    /// Chosen page size
+    /// </summary>
     public int PageSize { get; set; }
+    /// <summary>
+    /// Chosen ordering target
+    /// </summary>
     public string OrderBy { get; set; }
+    /// <summary>
+    /// Flag for ascending sort order
+    /// </summary>
     public bool OrderAsc { get; set; }
+    /// <summary>
+    /// User name start mask
+    /// </summary>
     public string NameStartsWith { get; set; }
+    /// <summary>
+    /// User email start mask
+    /// </summary>
     public string EmailStartsWith { get; set; }
+    /// <summary>
+    /// Age lower bound
+    /// </summary>
     public int MinAge { get; set; }
+    /// <summary>
+    /// Age upper bound
+    /// </summary>
     public int MaxAge { get; set; }
+    /// <summary>
+    /// Roles' IDS with comma as delimiter
+    /// </summary>
     public string RoleIds { get; set; }
 
     public PaginationFilter()
