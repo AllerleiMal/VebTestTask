@@ -90,7 +90,7 @@ public class UserController : ControllerBase
         {
             return BadRequest("No user with such ID");
         }
-        
+
         return NoContent();
     }
 
@@ -112,7 +112,7 @@ public class UserController : ControllerBase
             result.AddToModelState(ModelState);
             return BadRequest(new Response<User>
             {
-                Data = user, 
+                Data = user,
                 Errors = result.Errors.Select(x => x.ToString()).ToArray(),
                 Message = "User validation is not passed",
                 Succeeded = false
@@ -135,7 +135,7 @@ public class UserController : ControllerBase
         {
             return NotFound($"User with id {userToUpdate.Id} not found.");
         }
-        
+
         var result = await _userValidator.ValidateAsync(userToUpdate);
 
         if (!result.IsValid)
@@ -143,7 +143,7 @@ public class UserController : ControllerBase
             result.AddToModelState(ModelState);
             return BadRequest(new Response<User>
             {
-                Data = userToUpdate, 
+                Data = userToUpdate,
                 Errors = result.Errors.Select(x => x.ToString()).ToArray(),
                 Message = "User validation is not passed",
                 Succeeded = false
@@ -158,7 +158,11 @@ public class UserController : ControllerBase
     [HttpGet("roles")]
     public async Task<IActionResult> GetAllRolesAsync()
     {
-        return Ok(await _roleRepository.GetRolesAsync());
+        var result = await _roleRepository.GetRolesAsync();
+        return Ok(new Response<List<Role>>
+        {
+            Data = result.ToList()
+        });
     }
 
     [HttpGet("add_role")]
@@ -182,6 +186,11 @@ public class UserController : ControllerBase
 
         var changedUser = await _userRepository.AddNewRoleForUser(targetUser, targetRole);
 
-        return changedUser is null ? StatusCode(304, targetUser) : Ok(changedUser);
+        return changedUser is null
+            ? StatusCode(304)
+            : Ok(new Response<User>
+            {
+                Data = changedUser
+            });
     }
 }
