@@ -1,5 +1,6 @@
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using VebTestTask.Data;
 using VebTestTask.Data.Repositories;
 using VebTestTask.Filter;
@@ -15,12 +16,15 @@ public class UserController : ControllerBase
     private readonly ILogger<UserController> _logger;
     private readonly IUserRepository _userRepository;
     private readonly IRoleRepository _roleRepository;
+    private readonly IValidator<User> _userValidator;
 
-    public UserController(ILogger<UserController> logger, IUserRepository userRepository, IRoleRepository roleRepository)
+    public UserController(ILogger<UserController> logger, IUserRepository userRepository,
+        IRoleRepository roleRepository, IValidator<User> userValidator)
     {
         _logger = logger;
         _userRepository = userRepository;
         _roleRepository = roleRepository;
+        _userValidator = userValidator;
     }
 
     /// <summary>
@@ -31,15 +35,14 @@ public class UserController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetUsersAsync([FromQuery] PaginationFilter filter)
     {
-
         var pagedUsersParams = await PaginatedUsersParams.GetParamsFromPaginationFilter(filter);
         if (pagedUsersParams is null)
         {
             return BadRequest("Error in parameters");
         }
-        
+
         var (pagedData, totalRecords) = await _userRepository.GetPaginatedUsersAsync(pagedUsersParams);
-        
+
         var response = new PagedResponse<List<User>>
         {
             Data = pagedData.ToList(),
@@ -47,7 +50,7 @@ public class UserController : ControllerBase
             PageSize = filter.PageSize,
             TotalRecords = totalRecords
         };
-        
+
         return Ok(response);
     }
 
@@ -71,7 +74,7 @@ public class UserController : ControllerBase
         return Ok(targetUser);
     }
 
-    
+
     /// <summary>
     /// Deletes a specified user
     /// </summary>
@@ -90,42 +93,41 @@ public class UserController : ControllerBase
         
         return NoContent();
     }
-    
+
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> CreateUserAsync([FromBody]User? user)
+    public async Task<IActionResult> CreateUserAsync([FromBody] User? user)
     {
-        try
+        if (user is null)
         {
-            if (user is null)
-            {
-                return BadRequest("No user entity in request's body");
-            }
-    
-            var existedUser = await _userRepository.GetUserByEmailAsync(user.Email);
-            
-            if (existedUser != null)
-            {
-                ModelState.AddModelError("email", "User email is already in use");
-                return BadRequest(ModelState);
-            }
-            
-            var addedUser = await _userRepository.InsertUserAsync(user);
-    
-            return CreatedAtAction(nameof(GetUserByIdAsync), new { id = addedUser.Id }, addedUser);
+            return BadRequest("No user entity in request's body");
         }
-        catch (Exception)
+
+        user.Id = 0;
+        var result = await _userValidator.ValidateAsync(user);
+
+        if (!result.IsValid)
         {
-            return StatusCode(StatusCodes.Status500InternalServerError,
-                "Error while creating user");
+            result.AddToModelState(ModelState);
+            return BadRequest(new Response<User>
+            {
+                Data = user, 
+                Errors = result.Errors.Select(x => x.ToString()).ToArray(),
+                Message = "User validation is not passed",
+                Succeeded = false
+            });
         }
+
+        var addedUser = await _userRepository.InsertUserAsync(user);
+
+        return CreatedAtAction(nameof(GetUserByIdAsync), new { id = addedUser.Id }, new Response<User?>(addedUser));
     }
 
     [HttpPut]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status201Created)]
-    public async Task<ActionResult> UpdateProductAsync([FromBody] User userToUpdate)
+    public async Task<ActionResult> UpdateUserAsync([FromBody] User userToUpdate)
     {
         var targetUser = await _userRepository.GetUserByIdAsync(userToUpdate.Id);
 
@@ -133,10 +135,24 @@ public class UserController : ControllerBase
         {
             return NotFound($"User with id {userToUpdate.Id} not found.");
         }
+        
+        var result = await _userValidator.ValidateAsync(userToUpdate);
+
+        if (!result.IsValid)
+        {
+            result.AddToModelState(ModelState);
+            return BadRequest(new Response<User>
+            {
+                Data = userToUpdate, 
+                Errors = result.Errors.Select(x => x.ToString()).ToArray(),
+                Message = "User validation is not passed",
+                Succeeded = false
+            });
+        }
 
         await _userRepository.UpdateUserAsync(userToUpdate);
 
-        return CreatedAtAction(nameof(GetUserByIdAsync), new { id = userToUpdate.Id }, null);
+        return CreatedAtAction(nameof(GetUserByIdAsync), new { id = userToUpdate.Id }, new Response<User?>());
     }
 
     [HttpGet("roles")]
