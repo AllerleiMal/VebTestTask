@@ -47,7 +47,12 @@ public class UserController : ControllerBase
         var pagedUsersParams = await PaginatedUsersParams.GetParamsFromPaginationFilter(filter);
         if (pagedUsersParams is null)
         {
-            return BadRequest("Error in parameters");
+            _logger.LogInformation("Attempt to get paginated Users with invalid PaginationFilter instance.");
+            return BadRequest(new Response<List<User>>
+            {
+                Succeeded = false,
+                Message = "Parameters are invalid"
+            });
         }
 
         var (pagedData, totalRecords) = await _userRepository.GetPaginatedUsersAsync(pagedUsersParams);
@@ -59,6 +64,9 @@ public class UserController : ControllerBase
             PageSize = filter.PageSize,
             TotalRecords = totalRecords
         };
+        
+        _logger.LogInformation($"Paginated Users response created: page number is {response.PageNumber}," +
+                               $" {response.PageSize} items per page, total records {response.TotalRecords}");
 
         return Ok(response);
     }
@@ -85,6 +93,7 @@ public class UserController : ControllerBase
         var targetUser = await _userRepository.GetUserByIdAsync(id);
         if (targetUser == null)
         {
+            _logger.LogInformation($"User with id {id} not found");
             return NotFound(
                 new Response<User>
                 {
@@ -92,7 +101,9 @@ public class UserController : ControllerBase
                     Succeeded = false
                 });
         }
-
+        
+        _logger.LogInformation($"User with id {id} returned");
+        
         return Ok(new Response<User>
         {
            Data = targetUser
@@ -123,8 +134,11 @@ public class UserController : ControllerBase
 
         if (targetUser is not null)
         {
+            _logger.LogInformation($"User with id {id} deleted");
             return NoContent();
         }
+        
+        _logger.LogInformation($"User with id {id} not found");
         
         return NotFound(
             new Response<User>
@@ -166,9 +180,10 @@ public class UserController : ControllerBase
 
         user.Id = 0;
         var result = await _userValidator.ValidateAsync(user);
-
+        
         if (!result.IsValid)
         {
+            _logger.LogInformation("User validation failed");
             result.AddToModelState(ModelState);
             return BadRequest(new Response<User>
             {
@@ -180,6 +195,8 @@ public class UserController : ControllerBase
         }
 
         var addedUser = await _userRepository.InsertUserAsync(user);
+        
+        _logger.LogInformation($"New user with id {addedUser.Id} and email {addedUser.Email} added to the context");
 
         return CreatedAtAction(nameof(GetUserByIdAsync), new { id = addedUser.Id }, new Response<User?>(addedUser));
     }
@@ -207,6 +224,7 @@ public class UserController : ControllerBase
     {
         if (userToUpdate is null)
         {
+            _logger.LogInformation("No user instance in update request body");
             return BadRequest(
                 new Response<User>
                 {
@@ -214,23 +232,12 @@ public class UserController : ControllerBase
                     Succeeded = false
                 });
         }
-
-        var targetUser = await _userRepository.GetUserByIdAsync(userToUpdate.Id);
-
-        if (targetUser is null)
-        {
-            return NotFound(
-                new Response<User>
-                {
-                    Message = $"User with id {userToUpdate.Id} not found.",
-                    Succeeded = false
-                });
-        }
-
+        
         var result = await _userValidator.ValidateAsync(userToUpdate);
 
         if (!result.IsValid)
         {
+            _logger.LogInformation($"User data validation is not passed");
             result.AddToModelState(ModelState);
             return BadRequest(new Response<User>
             {
@@ -241,8 +248,22 @@ public class UserController : ControllerBase
             });
         }
 
-        await _userRepository.UpdateUserAsync(userToUpdate);
+        var targetUser = await _userRepository.GetUserByIdAsync(userToUpdate.Id);
 
+        if (targetUser is null)
+        {
+            _logger.LogInformation($"User with id {userToUpdate.Id} not found, nothing to update");
+            return NotFound(
+                new Response<User>
+                {
+                    Message = $"User with id {userToUpdate.Id} not found.",
+                    Succeeded = false
+                });
+        }
+
+        await _userRepository.UpdateUserAsync(userToUpdate);
+        
+        _logger.LogInformation($"User with id {userToUpdate.Id} updated successfully");
         return NoContent();
     }
 
@@ -292,10 +313,11 @@ public class UserController : ControllerBase
         var targetUser = await _userRepository.GetUserByIdAsync(userId);
         if (targetUser is null)
         {
+            _logger.LogInformation($"User with id {userId} not found");
             return NotFound(
                 new Response<User>
                 {
-                    Message = $"No user with such id {userId}.",
+                    Message = $"User with id {userId} not found.",
                     Succeeded = false
                 });
         }
@@ -304,21 +326,27 @@ public class UserController : ControllerBase
 
         if (targetRole is null)
         {
+            _logger.LogInformation($"Role with id {newRoleId} not found");
             return NotFound(
                 new Response<User>
                 {
-                    Message = $"No role with such id {newRoleId}.",
+                    Message = $"Role with id {newRoleId} not found.",
                     Succeeded = false
                 });
         }
 
         var changedUser = await _userRepository.AddNewRoleForUserAsync(targetUser, targetRole);
 
-        return changedUser is null
-            ? StatusCode(304)
-            : Ok(new Response<User>
-            {
-                Data = changedUser
-            });
+        if (changedUser is null)
+        {
+            _logger.LogInformation($"User {userId} already has Role {newRoleId}, no data modification");
+            return StatusCode(304);
+        }
+        
+        _logger.LogInformation($"New Role {newRoleId} added to User {userId}");
+        return Ok(new Response<User>
+        {
+            Data = changedUser
+        });
     }
 }

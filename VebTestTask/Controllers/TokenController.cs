@@ -70,6 +70,8 @@ public class TokenController : ControllerBase
                 Succeeded = false
             });
         }
+        _logger.LogInformation(
+            $"Attempt to authenticate with email {loginCredentials.Email} and name {loginCredentials.Name}");
 
         var targetUser =
             await _userRepository.GetUserByNameAndEmailAsync(loginCredentials.Name, loginCredentials.Email);
@@ -92,6 +94,11 @@ public class TokenController : ControllerBase
         return Ok(new JwtSecurityTokenHandler().WriteToken(token));
     }
 
+    /// <summary>
+    /// Returns claims based on user data and common JWT token params
+    /// </summary>
+    /// <param name="targetUser">Authenticating user</param>
+    /// <returns>Array of Claims</returns>
     private Claim[] GetClaimsForUser(User targetUser)
     {
         return new[]
@@ -107,6 +114,11 @@ public class TokenController : ControllerBase
         };
     }
 
+    /// <summary>
+    /// Returns JWT token for specified User
+    /// </summary>
+    /// <param name="targetUser"></param>
+    /// <returns></returns>
     private JwtSecurityToken GetJwtTokenForUser(User targetUser)
     {
         var claims = GetClaimsForUser(targetUser);

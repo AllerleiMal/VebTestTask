@@ -8,6 +8,10 @@ public class User
     public string Email { get; set; }
     public virtual ICollection<Role> Roles { get; set; }
 
+    /// <summary>
+    /// Copy all data except Id from another User instance
+    /// </summary>
+    /// <param name="user">Source User</param>
     public void ApplyChangesExceptId(User user)
     {
         Name = user.Name;
