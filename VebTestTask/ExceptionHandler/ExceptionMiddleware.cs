@@ -30,6 +30,11 @@ public class ExceptionMiddleware : IMiddleware
         }
     }
 
+    /// <summary>
+    /// Creates InternalServerError response based on catched exception
+    /// </summary>
+    /// <param name="context"></param>
+    /// <param name="ex"></param>
     private async Task HandleExceptionAsync(HttpContext context, Exception ex)
     {
         context.Response.ContentType = MediaTypeNames.Application.Json;
